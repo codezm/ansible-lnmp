@@ -1,0 +1,15 @@
+- src: https://github.com.cnpmjs.org/codezm/ansible-role-php.git
+  version: master
+  name: codezm.php
+
+- src: https://github.com.cnpmjs.org/codezm/ansible-role-nginx.git
+  version: master
+  name: codezm.nginx
+
+- src: https://github.com.cnpmjs.org/codezm/ansible-role-mysql.git
+  version: master
+  name: codezm.mysql
+
+- src: https://github.com.cnpmjs.org/codezm/ansible-role-common.git
+  version: master
+  name: codezm.common

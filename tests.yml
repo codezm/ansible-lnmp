@@ -1,0 +1,44 @@
+- name: "Upload test file"
+  copy:
+    src: src
+    dest: "{{ nginx_root }}"
+    owner: "{{ __web_user }}"
+    group: "{{ __web_group }}"
+    mode: u=rwx,g=rx,o=rx
+  tags: [ "upload test file" ]
+
+- name: "Modify directory permission"
+  shell: |
+    {%- for item in nginx_root.split('/') -%}
+      {%- if item == "" -%}
+        cd /;
+      {%- else -%}
+        (test -e "{{ item }}" && chmod 0701 "{{ item }}") || (mkdir -m 0701 "{{ item }}" && chown "{{ __web_user }}:{{ __web_group }}" "{{ item }}")
+        cd "{{ item }}";
+      {%- endif -%}
+    {%- endfor -%}
+  #tags: "debug"
+
+- name: "firewalld Open 80 port"
+  ansible.posix.firewalld:
+    zone: public
+    service: http
+    immediate: true
+    permanent: true
+    state: enabled
+
+- name: "modify nginx.conf"
+  lineinfile:
+    path: "{{ _nginx_configurate_file }}"
+    firstmatch: yes
+    insertbefore: '\s+location \/ {'
+    line: |
+      ################ ansible-test S ###################
+      location ~ \.php$ {
+          root           {{ nginx_root }};
+          fastcgi_pass   127.0.0.1:9000;
+          fastcgi_index  index.php;
+          include        fastcgi.conf;
+      }
+      ################ ansible-test E ###################
+  notify: "reload nginx"

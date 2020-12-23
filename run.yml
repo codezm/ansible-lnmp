@@ -1,0 +1,51 @@
+---
+  - hosts: production
+    become: yes
+    gather_facts: no
+    serial: 1
+
+    vars:
+      - __web_user: apache
+      - __web_user_uid: 48
+      - __web_group: apache
+      - __web_group_gid: 48
+      - __clean_origin_file: true
+      - __package_tmp_save_dir: "/tmp/"
+      - __ansible_get_url_timeout: 90
+      - env_install_way: "network"
+
+    pre_tasks:
+      - name: Disabled SELinux
+        selinux: state=disabled
+
+      - name: "Install common tools"
+        package:
+          name:
+            - tar
+            - wget
+          state: present
+
+      - name: "Config yum repo."
+        include_role:
+          name: codezm.common
+          tasks_from: repo-enable
+
+    roles:
+      - role: codezm.nginx
+        tags: nginx
+      - role: codezm.php
+        tags: php
+      - role: codezm.mysql
+        tags: mysql
+
+    tasks:
+      - name: "ansible web test"
+        import_tasks: tests.yml
+        tags: ["tests", "always"]
+        #tags: ["tests", "never"]
+
+    post_tasks:
+      - name: "Remove yum repo config."
+        include_role:
+          name: codezm.common
+          tasks_from: repo-disable
