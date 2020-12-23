@@ -36,7 +36,12 @@ Ansible-LNMP
 #### 前提条件
 控制端需安装以下工具：
 - Python
-- Ansible 可通过执行 `pip install ansible -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com` 命令进行安装。
+    - CentOS
+        - `yum install -y python`
+    - Mac
+        - `brew install python`
+- Ansible
+    - `pip install ansible -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com`
 
 RHEL/CentOS：7、8
 #### 使用 
