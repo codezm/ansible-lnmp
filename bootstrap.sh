@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Download the roles.
-ansible-galaxy install --roles-path roles -r requirements.yml
+ansible-galaxy install --roles-path=roles --role-file=requirements.yml --force
 
 # Download the software package.
 ./tools/package-download.sh

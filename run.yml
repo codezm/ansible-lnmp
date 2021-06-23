@@ -1,8 +1,11 @@
 ---
   - hosts: production
     become: yes
-    gather_facts: no
+    gather_facts: yes
     serial: 1
+    # Use by collection.
+    #collections:
+      #- codezm.lnmp
 
     vars:
       - __web_user: apache
@@ -17,6 +20,7 @@
     pre_tasks:
       - name: Disabled SELinux
         selinux: state=disabled
+        when: ansible_os_family == "CentOS"
 
       - name: "Install common tools"
         package:
@@ -27,9 +31,20 @@
 
       - name: "Config yum repo."
         include_role:
+          # Use by collection.
+          #name: common
           name: codezm.common
           tasks_from: repo-enable
+        when: ansible_os_family == "CentOS"
 
+    # Use by collection.
+    #roles:
+      #- role: nginx
+        #tags: nginx
+      #- role: php
+        #tags: php
+      #- role: mysql
+        #tags: mysql
     roles:
       - role: codezm.nginx
         tags: nginx
@@ -47,5 +62,8 @@
     post_tasks:
       - name: "Remove yum repo config."
         include_role:
+          # Use by collection.
+          #name: common
           name: codezm.common
           tasks_from: repo-disable
+        when: ansible_os_family == "CentOS"
