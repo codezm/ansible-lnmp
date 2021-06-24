@@ -1,3 +1,5 @@
 roles
 runtime/logs/*
 !runtime/logs/.gitkeep
+files/*
+!files/.gitkeep

@@ -1,5 +1,7 @@
 #!/bin/bash
+#set -ex
 declare -r CURRENT_DIR=$(dirname "$0")
+declare -r USE_GLOBAL_FILES=1
 # @Reference https://aria2.github.io/manual/en/html/aria2c.html#options https://aria2.github.io/manual/en/html/aria2c.html#input-file
 declare -r DOWNLOAD_COMMAND_ARIA2="aria2c -c -x16 -s20 -j20 --no-conf --max-tries=10 --file-allocation=none --input-file=-"
 #declare -r DOWNLOAD_COMMAND_ARIA2="aria2c -c --quiet -x16 -s20 -j20 --max-tries=10 --file-allocation=none --input-file=-"
@@ -7,27 +9,31 @@ declare -r DOWNLOAD_COMMAND_WGET="wget --show-progress --no-check-certificate -c
 #declare -r DOWNLOAD_COMMAND_WGET="wget --quiet --no-check-certificate -c"
 
 declare ROLES_DIR=$(dirname "$CURRENT_DIR")"/roles/"
+declare FILES_DIR=$(dirname "$CURRENT_DIR")"/files/"
+declare VARS_DIR=$(dirname "$CURRENT_DIR")"/vars/"
+declare GLOBAL_VAR_FILE=""
 #declare DOWNLOAD_COMMAND=""
 declare DOWNLOAD_URLS=()
 # operate: delete
 declare operate=""
+declare parseFilter=""
 
 # @Reference https://stackoverflow.com/questions/5014632/how-can-i-parse-a-yaml-file-from-a-linux-shell-script
 function parse_yaml {
-   local prefix=$2
-   local s='[[:space:]]*' w='[a-zA-Z0-9_]*' fs=$(echo @|tr @ '\034')
-   sed -ne "s|,$s\]$s\$|]|" \
+    local prefix=$2
+    local s='[[:space:]]*' w='[a-zA-Z0-9_]*' fs=$(echo @|tr @ '\034')
+    sed -ne "s|,$s\]$s\$|]|" \
         -e ":1;s|^\($s\)\($w\)$s:$s\[$s\(.*\)$s,$s\(.*\)$s\]|\1\2: [\3]\n\1  - \4|;t1" \
         -e "s|^\($s\)\($w\)$s:$s\[$s\(.*\)$s\]|\1\2:\n\1  - \3|;p" $1 | \
-   sed -ne "s|,$s}$s\$|}|" \
+    sed -ne "s|,$s}$s\$|}|" \
         -e ":1;s|^\($s\)-$s{$s\(.*\)$s,$s\($w\)$s:$s\(.*\)$s}|\1- {\2}\n\1  \3: \4|;t1" \
         -e    "s|^\($s\)-$s{$s\(.*\)$s}|\1-\n\1  \2|;p" | \
-   sed -ne "s|^\($s\):|\1|" \
+    sed -ne "s|^\($s\):|\1|" \
         -e "s|^\($s\)-$s[\"']\(.*\)[\"']$s\$|\1$fs$fs\2|p" \
         -e "s|^\($s\)-$s\(.*\)$s\$|\1$fs$fs\2|p" \
         -e "s|^\($s\)\($w\)$s:$s[\"']\(.*\)[\"']$s\$|\1$fs\2$fs\3|p" \
         -e "s|^\($s\)\($w\)$s:$s\(.*\)$s\$|\1$fs\2$fs\3|p" | \
-   awk -F$fs '{
+    awk -F$fs '{
       indent = length($1)/2;
       vname[indent] = $2;
       for (i in vname) {if (i > indent) {delete vname[i]; idx[i]=0}}
@@ -36,11 +42,25 @@ function parse_yaml {
          vn=""; for (i=0; i<indent; i++) { vn=(vn)(vname[i])("_")}
          printf("%s%s%s=\"%s\"\n", "'$prefix'",vn, vname[indent], $3);
       }
-   }'
+    }'
+
+    if [[ -n "$GLOBAL_VAR_FILE" && "$parseFilter" != "$1" ]]; then
+        local parseFilter=$1
+        echo $(parse_yaml $GLOBAL_VAR_FILE "conf__")
+    fi
 }
 
 function init() {
     ROLES_DIR=`echo $(cd "$ROLES_DIR";pwd)`
+    VARS_DIR=`echo $(cd "$VARS_DIR";pwd)`
+    FILES_DIR=`echo $(cd "$FILES_DIR";pwd)`
+
+    if [ $1 ]; then
+        local tmpGlobalVarFile=$VARS_DIR"/$1.yml"
+        if [ -f "$tmpGlobalVarFile" ]; then
+            GLOBAL_VAR_FILE=$tmpGlobalVarFile
+        fi
+    fi
 }
 
 function checkCommand() {
@@ -53,8 +73,10 @@ function checkCommand() {
 
 function download_nginx() {
     eval $(parse_yaml "$ROLES_DIR/codezm.nginx/vars/main.yml" "conf_")
+    conf__nginx_version=$(echo $conf__nginx_version | tr -cd "[0-9.]")
+    #conf__nginx_version=$(echo $conf__nginx_version | sed 's/{% if nginx_version is defined %}{{ nginx_version }}{% else %}\([0-9.]*\){% endif %}/\1/g')
 
-    local NGINX_DIR="$ROLES_DIR/codezm.nginx/files"
+    local NGINX_DIR=$(getFilesPath "nginx")
     #local NGINX_DIR="$ROLES_DIR/../"
 
     if [ ! -f "$NGINX_DIR/nginx-$conf__nginx_version.tar.gz" ] || [ -f "$NGINX_DIR/nginx-$conf__nginx_version.tar.gz.aria2" ]; then
@@ -65,15 +87,17 @@ function download_nginx() {
             echo "delete: $NGINX_DIR/nginx-$conf__nginx_version.tar.gz"
             rm -f "$NGINX_DIR/nginx-$conf__nginx_version.tar.gz"
         else
-            echo "The nginx package is downloaded!"
+            echo "The nginx-$conf__nginx_version.tar.gz package is downloaded!"
         fi
     fi
 }
 
 function download_php() {
     eval $(parse_yaml "$ROLES_DIR/codezm.php/vars/main.yml" "conf_")
+    conf__php_version=$(echo $conf__php_version | tr -cd "[0-9.]");
+    #conf__php_version=$(echo $conf__php_version | sed 's/{% if php_version is defined %}{{ php_version }}{% else %}\([0-9.]*\){% endif %}/\1/g')
 
-    local PHP_DIR="$ROLES_DIR/codezm.php/files"
+    local PHP_DIR=$(getFilesPath "php")
     #local PHP_DIR="$ROLES_DIR/../"
 
     if [ ! -f "$PHP_DIR/php-$conf__php_version.tar.gz" ] || [ -f "$PHP_DIR/php-$conf__php_version.tar.gz.aria2" ]; then
@@ -84,11 +108,14 @@ function download_php() {
             echo "delete: $PHP_DIR/php-$conf__php_version.tar.gz"
             rm -f "$PHP_DIR/php-$conf__php_version.tar.gz"
         else
-            echo "The php package is downloaded!"
+            echo "The php-$conf__php_version.tar.gz package is downloaded!"
         fi
     fi
 
     php_extensions_list=(`echo ${!conf__php_extensions_list*}`)
+    if [[ ${!php_extensions_list[@]} == 0 ]]; then
+        php_extensions_list=(`echo ${!conf__php_extensions_default_list*}`)
+    fi
 
     # @Reference https://segmentfault.com/a/1190000008053195
     for i in "${!php_extensions_list[@]}"; do
@@ -97,6 +124,7 @@ function download_php() {
 
             # @Reference https://blog.csdn.net/qq_23091073/article/details/83066518
             php_extension_name=${php_extensions_list[$i]##*conf__php_extensions_list_}
+            php_extension_name=${php_extensions_list[$i]##*conf__php_extensions_default_list_}
             php_extension_name=${php_extension_name%*_version}
             #php_extension_name=${php_extensions_list[$i]/conf__php_extensions_list_/}
             #php_extension_name=${php_extension_name/_version/}
@@ -111,7 +139,7 @@ function download_php() {
                     echo "delete: $PHP_DIR/$php_extension_name-$php_extension_version.tgz"
                     rm -f "$PHP_DIR/$php_extension_name-$php_extension_version.tgz"
                 else
-                    echo "The php extension ${php_extension_name}-${php_extension_version} package is downloaded!"
+                    echo "The php-extension ${php_extension_name}-${php_extension_version}.tgz package is downloaded!"
                 fi
             fi
         fi
@@ -120,8 +148,10 @@ function download_php() {
 
 function download_mysql() {
     eval $(parse_yaml "$ROLES_DIR/codezm.mysql/vars/main.yml" "conf_")
+    conf__mysql_version=$(echo $conf__mysql_version | sed 's/{% if mysql_version is defined %}{{ mysql_version }}{% else %}\(.*\){% endif %}/\1/g')
+    conf__mysql_download_url_prefix=$(echo $conf__mysql_download_url_prefix | sed 's/{% if mysql_download_url_prefix is defined %}{{ mysql_download_url_prefix }}{% else %}\(.*\){% endif %}/\1/g')
 
-    local MYSQL_DIR="$ROLES_DIR/codezm.mysql/files"
+    local MYSQL_DIR=$(getFilesPath "mysql")
 
     mysql_download_lists=(`echo ${!conf__mysql_download_lists*}`)
     # @Reference https://segmentfault.com/a/1190000008053195
@@ -169,7 +199,15 @@ function download_execute() {
     fi
 }
 
-init
+function getFilesPath() {
+    if [ $USE_GLOBAL_FILES == 1 ]; then
+        echo $FILES_DIR
+    else
+        echo "$ROLES_DIR/codezm.$1/files"
+    fi
+}
+
+init $*
 download_nginx
 download_php
 download_mysql

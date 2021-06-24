@@ -1,0 +1,10 @@
+---
+nginx_version: "1.20.1"
+php_version: "7.4.20"
+mysql_version: "8.0.25-1.el7.x86_64.rpm"
+php_extensions_list:
+  yaf:
+    version: "3.3.2"
+    configures:
+      - yaf.environ=product
+      - yaf.use_namespace=1

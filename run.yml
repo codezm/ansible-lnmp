@@ -16,6 +16,8 @@
       - __package_tmp_save_dir: "/tmp/"
       - __ansible_get_url_timeout: 90
       - env_install_way: "network"
+    vars_files:
+      - "vars/production.yml"
 
     pre_tasks:
       - name: Disabled SELinux
