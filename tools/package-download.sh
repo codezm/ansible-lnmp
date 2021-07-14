@@ -124,7 +124,7 @@ function download_php() {
 
             # @Reference https://blog.csdn.net/qq_23091073/article/details/83066518
             php_extension_name=${php_extensions_list[$i]##*conf__php_extensions_list_}
-            php_extension_name=${php_extensions_list[$i]##*conf__php_extensions_default_list_}
+            php_extension_name=${php_extension_name##*conf__php_extensions_default_list_}
             php_extension_name=${php_extension_name%*_version}
             #php_extension_name=${php_extensions_list[$i]/conf__php_extensions_list_/}
             #php_extension_name=${php_extension_name/_version/}
