@@ -22,7 +22,7 @@
     pre_tasks:
       - name: Disabled SELinux
         selinux: state=disabled
-        when: ansible_os_family == "CentOS"
+        when: ansible_os_family == "RedHat"
 
       - name: "Install common tools"
         package:
@@ -31,13 +31,21 @@
             - wget
           state: present
 
+      - name: "Config yum base-repo to aliyun."
+        include_role:
+          # Use by collection.
+          #name: common
+          name: codezm.common
+          tasks_from: "repo-aliyun"
+        when: ansible_os_family == "RedHat"
+
       - name: "Config yum repo."
         include_role:
           # Use by collection.
           #name: common
           name: codezm.common
           tasks_from: repo-enable
-        when: ansible_os_family == "CentOS"
+        when: ansible_os_family == "RedHat"
 
     # Use by collection.
     #roles:
@@ -68,4 +76,4 @@
           #name: common
           name: codezm.common
           tasks_from: repo-disable
-        when: ansible_os_family == "CentOS"
+        when: ansible_os_family == "RedHat"
